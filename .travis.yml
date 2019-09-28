@@ -17,6 +17,7 @@ script:
 branches:
   only: # speed up CI: don't build pull requests twice
     - "master"
+    - /^v\d+\.\d+\.\d+$/
 
 after_success:
   - test -n "$TRAVIS_TAG" && docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
@@ -31,7 +32,7 @@ deploy:
   skip_cleanup: true
   script:
     - make test_race
-    - curl -sL https://git.io/goreleaser | bash
+    - make release
   on:
     tags: true
     # it's important to build on the newest version of go:

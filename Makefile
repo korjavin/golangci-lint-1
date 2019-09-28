@@ -1,8 +1,12 @@
 .DEFAULT_GOAL = test
 .PHONY: FORCE
 
-# Enable Go module support across all commands.
+# enable module support across all go commands.
 export GO111MODULE = on
+# opt-in to vendor deps across all go commands.
+export GOFLAGS = -mod=vendor
+# enable consistent Go 1.12/1.13 GOPROXY behavior.
+export GOPROXY = https://proxy.golang.org
 
 # Build
 
@@ -12,8 +16,11 @@ build_race: FORCE
 	go build -race -o golangci-lint ./cmd/golangci-lint
 build: golangci-lint
 clean:
-	rm -f golangci-lint test/path
-	rm -rf tools
+	rm -f golangci-lint
+	rm -f test/path
+	rm -f tools/svg-term
+	rm -f tools/Dracula.itermcolors
+	rm -rf tools/node_modules
 .PHONY: fast_build build build_race clean
 
 # Test
@@ -36,74 +43,52 @@ test_linters:
 
 # Maintenance
 
-generate: README.md docs/demo.svg install.sh pkg/logutils/mock_logutils/mock_log.go vendor
+generate: README.md docs/demo.svg install.sh vendor
 fast_generate: README.md vendor
 
 maintainer-clean: clean
-	rm -f docs/demo.svg README.md install.sh pkg/logutils/mock_logutils/mock_log.go
+	rm -f docs/demo.svg README.md install.sh
 	rm -rf vendor
 .PHONY: generate maintainer-clean
 
 check_generated:
 	$(MAKE) --always-make generate
-	git checkout -- go.mod go.sum # can differ between go1.11 and go1.12
 	git checkout -- vendor/modules.txt # can differ between go1.12 and go1.13
 	git diff --exit-code # check no changes
 .PHONY: check_generated
 
 fast_check_generated:
 	$(MAKE) --always-make fast_generate
-	git checkout -- go.mod go.sum # can differ between go1.11 and go1.12
 	git checkout -- vendor/modules.txt # can differ between go1.12 and go1.13
 	git diff --exit-code # check no changes
 .PHONY: fast_check_generated
 
-release:
-	rm -rf dist
-	curl -sL https://git.io/goreleaser | bash
+release: export GOFLAGS = -mod=readonly
+release: .goreleaser.yml
+	cd tools && go run github.com/goreleaser/goreleaser --config ../.goreleaser.yml
 .PHONY: release
 
 # Non-PHONY targets (real files)
 
-golangci-lint: FORCE pkg/logutils/mock_logutils/mock_log.go
+golangci-lint: FORCE
 	go build -o $@ ./cmd/golangci-lint
 
-tools/mockgen: go.mod go.sum
-	GOBIN=$(CURDIR)/tools go install github.com/golang/mock/mockgen
-
-tools/goimports: go.mod go.sum
-	GOBIN=$(CURDIR)/tools go install golang.org/x/tools/cmd/goimports
-
-tools/go.mod:
-	@mkdir -p tools
-	@rm -f $@
-	cd tools && go mod init local-tools
-
-tools/godownloader: Makefile tools/go.mod
-	# https://github.com/goreleaser/godownloader/issues/133
-	cd tools && GOBIN=$(CURDIR)/tools go get -u github.com/goreleaser/godownloader
-
-tools/svg-term:
-	@mkdir -p tools
+tools/svg-term: tools/package.json tools/package-lock.json
 	cd tools && npm ci
 	ln -sf node_modules/.bin/svg-term $@
 
 tools/Dracula.itermcolors:
-	@mkdir -p tools
 	curl -fL -o $@ https://raw.githubusercontent.com/dracula/iterm/master/Dracula.itermcolors
 
 docs/demo.svg: tools/svg-term tools/Dracula.itermcolors
-	PATH=$(CURDIR)/tools:$${PATH} svg-term --cast=183662 --out docs/demo.svg --window --width 110 --height 30 --from 2000 --to 20000 --profile ./tools/Dracula.itermcolors --term iterm2
+	./tools/svg-term --cast=183662 --out docs/demo.svg --window --width 110 --height 30 --from 2000 --to 20000 --profile ./tools/Dracula.itermcolors --term iterm2
 
-install.sh: tools/godownloader .goreleaser.yml
-	PATH=$(CURDIR)/tools:$${PATH} tools/godownloader .goreleaser.yml | sed '/DO NOT EDIT/s/ on [0-9TZ:-]*//' > $@
+install.sh: export GOFLAGS = -mod=readonly
+install.sh: .goreleaser.yml
+	cd tools && go run github.com/goreleaser/godownloader ../.goreleaser.yml | sed '/DO NOT EDIT/s/ on [0-9TZ:-]*//' > ../$@
 
 README.md: FORCE golangci-lint
 	go run ./scripts/gen_readme/main.go
-
-pkg/logutils/mock_logutils/mock_log.go: tools/mockgen tools/goimports pkg/logutils/log.go
-	@rm -f $@
-	PATH=$(CURDIR)/tools:$${PATH} go generate ./...
 
 go.mod: FORCE
 	go mod tidy
@@ -112,5 +97,4 @@ go.sum: go.mod
 
 .PHONY: vendor
 vendor: go.mod go.sum
-	rm -rf vendor
 	go mod vendor

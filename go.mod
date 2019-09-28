@@ -1,13 +1,12 @@
 module github.com/golangci/golangci-lint
 
-go 1.11
+go 1.12
 
 require (
 	github.com/OpenPeeDeeP/depguard v1.0.1
 	github.com/fatih/color v1.7.0
 	github.com/go-critic/go-critic v0.3.5-0.20190904082202-d79a9f0c64db
 	github.com/go-lintpack/lintpack v0.5.2
-	github.com/golang/mock v1.3.1
 	github.com/golangci/check v0.0.0-20180506172741-cfe4005ccda2
 	github.com/golangci/dupl v0.0.0-20180902072040-3e9179ac440a
 	github.com/golangci/errcheck v0.0.0-20181223084120-ef45e06d44b6
@@ -37,7 +36,7 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/timakin/bodyclose v0.0.0-20190721030226-87058b9bfcec
 	github.com/ultraware/funlen v0.0.2
-	github.com/ultraware/whitespace v0.0.2
+	github.com/ultraware/whitespace v0.0.3
 	github.com/valyala/quicktemplate v1.2.0
 	golang.org/x/tools v0.0.0-20190912215617-3720d1ec3678
 	gopkg.in/yaml.v2 v2.2.2
@@ -47,7 +46,12 @@ require (
 	mvdan.cc/unparam v0.0.0-20190720180237-d51796306d8f
 )
 
-// https://github.com/golang/tools/pull/162
-// https://github.com/golang/tools/pull/160
-// https://github.com/golang/tools/pull/156
-replace golang.org/x/tools => github.com/golangci/tools v0.0.0-20190915081525-6aa350649b1c
+replace (
+	// https://github.com/timakin/bodyclose/pull/20
+	github.com/timakin/bodyclose => github.com/golangci/bodyclose v0.0.0-20190924091105-43b3ff1b0de0
+
+	// https://github.com/golang/tools/pull/156
+	// https://github.com/golang/tools/pull/160
+	// https://github.com/golang/tools/pull/162
+	golang.org/x/tools => github.com/golangci/tools v0.0.0-20190915081525-6aa350649b1c
+)

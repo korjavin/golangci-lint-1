@@ -102,6 +102,7 @@ type Run struct {
 	Silent              bool
 	CPUProfilePath      string
 	MemProfilePath      string
+	TracePath           string
 	Concurrency         int
 	PrintResourcesUsage bool `mapstructure:"print-resources-usage"`
 
@@ -169,6 +170,9 @@ type LintersSettings struct {
 	Funlen struct {
 		Lines      int
 		Statements int
+	}
+	Whitespace struct {
+		MultiIf bool `mapstructure:"multi-if"`
 	}
 
 	Lll      LllSettings
