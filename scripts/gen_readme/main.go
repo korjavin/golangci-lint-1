@@ -42,6 +42,20 @@ func genReadme(tmplPath, outPath string) error {
 	return tmpl.Execute(out, ctx)
 }
 
+func getLatestVersion() (string, error) {
+	if gitTag := os.Getenv("GIT_TAG"); gitTag != "" {
+		return gitTag, nil
+	}
+
+	out, err := exec.Command("git", "tag", "-l", "--sort=-v:refname").Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to run git tag: %s", err)
+	}
+
+	lines := bytes.Split(out, []byte("\n"))
+	return string(lines[0]), nil
+}
+
 func buildTemplateContext() (map[string]interface{}, error) {
 	golangciYaml, err := ioutil.ReadFile(".golangci.yml")
 	if err != nil {
@@ -79,6 +93,11 @@ func buildTemplateContext() (map[string]interface{}, error) {
 		return nil, err
 	}
 
+	latestVersion, err := getLatestVersion()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest version: %s", err)
+	}
+
 	return map[string]interface{}{
 		"GolangciYaml":                     strings.TrimSpace(string(golangciYaml)),
 		"GolangciYamlExample":              strings.TrimSpace(string(golangciYamlExample)),
@@ -89,12 +108,13 @@ func buildTemplateContext() (map[string]interface{}, error) {
 		"ThanksList":                       getThanksList(),
 		"RunHelpText":                      string(shortHelp),
 		"ChangeLog":                        string(changeLog),
+		"LatestVersion":                    latestVersion,
 	}, nil
 }
 
 func getLintersListMarkdown(enabled bool) string {
 	var neededLcs []*linter.Config
-	lcs := lintersdb.NewManager(nil).GetAllSupportedLinterConfigs()
+	lcs := lintersdb.NewManager(nil, nil).GetAllSupportedLinterConfigs()
 	for _, lc := range lcs {
 		if lc.EnabledByDefault == enabled {
 			neededLcs = append(neededLcs, lc)
@@ -119,7 +139,7 @@ func getLintersListMarkdown(enabled bool) string {
 func getThanksList() string {
 	var lines []string
 	addedAuthors := map[string]bool{}
-	for _, lc := range lintersdb.NewManager(nil).GetAllSupportedLinterConfigs() {
+	for _, lc := range lintersdb.NewManager(nil, nil).GetAllSupportedLinterConfigs() {
 		if lc.OriginalURL == "" {
 			continue
 		}

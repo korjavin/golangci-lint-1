@@ -4,8 +4,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/golangci/golangci-lint/pkg/config"
-
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
@@ -14,12 +12,13 @@ import (
 	"golang.org/x/tools/go/analysis/passes/buildtag"
 	"golang.org/x/tools/go/analysis/passes/cgocall"
 	"golang.org/x/tools/go/analysis/passes/shadow"
+
+	"github.com/golangci/golangci-lint/pkg/config"
 )
 
 func TestGovet(t *testing.T) {
 	// Checking that every default analyzer is in "all analyzers" list.
-	allAnalyzers := getAllAnalyzers()
-	checkList := append(getDefaultAnalyzers(),
+	checkList := append(defaultAnalyzers,
 		shadow.Analyzer, // special case, used in analyzersFromConfig
 	)
 	for _, defaultAnalyzer := range checkList {
@@ -45,12 +44,12 @@ func (p sortedAnalyzers) Swap(i, j int)      { p[i].Name, p[j].Name = p[j].Name,
 func TestGovetSorted(t *testing.T) {
 	// Keeping analyzers sorted so their order match the import order.
 	t.Run("All", func(t *testing.T) {
-		if !sort.IsSorted(sortedAnalyzers(getAllAnalyzers())) {
+		if !sort.IsSorted(sortedAnalyzers(allAnalyzers)) {
 			t.Error("please keep all analyzers list sorted by name")
 		}
 	})
 	t.Run("Default", func(t *testing.T) {
-		if !sort.IsSorted(sortedAnalyzers(getDefaultAnalyzers())) {
+		if !sort.IsSorted(sortedAnalyzers(defaultAnalyzers)) {
 			t.Error("please keep default analyzers list sorted by name")
 		}
 	})

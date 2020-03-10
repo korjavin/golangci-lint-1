@@ -10,18 +10,22 @@ export GOPROXY = https://proxy.golang.org
 
 # Build
 
-fast_build: FORCE
-	go build -o golangci-lint ./cmd/golangci-lint
-build_race: FORCE
-	go build -race -o golangci-lint ./cmd/golangci-lint
 build: golangci-lint
+.PHONY: build
+
+build_race:
+	go build -race -o golangci-lint ./cmd/golangci-lint
+.PHONY: build_race
+
 clean:
 	rm -f golangci-lint
 	rm -f test/path
-	rm -f tools/svg-term
 	rm -f tools/Dracula.itermcolors
+	rm -f tools/godownloader
+	rm -f tools/goreleaser
+	rm -f tools/svg-term
 	rm -rf tools/node_modules
-.PHONY: fast_build build build_race clean
+.PHONY: clean
 
 # Test
 test: export GOLANGCI_LINT_INSTALLED = true
@@ -32,9 +36,8 @@ test: build
 	GL_TEST_RUN=1 time go test -v ./...
 .PHONY: test
 
-test_race:
-	go build -race -o golangci-lint ./cmd/golangci-lint
-	GL_TEST_RUN=1 ./golangci-lint run -v --deadline=5m
+test_race: build_race
+	GL_TEST_RUN=1 ./golangci-lint run -v --timeout=5m
 .PHONY: test_race
 
 test_linters:
@@ -44,34 +47,43 @@ test_linters:
 # Maintenance
 
 generate: README.md docs/demo.svg install.sh vendor
+.PHONY: generate
+
 fast_generate: README.md vendor
+.PHONY: fast_generate
 
 maintainer-clean: clean
-	rm -f docs/demo.svg README.md install.sh
-	rm -rf vendor
-.PHONY: generate maintainer-clean
+	rm -rf docs/demo.svg README.md install.sh vendor
+.PHONY: maintainer-clean
 
 check_generated:
 	$(MAKE) --always-make generate
-	git checkout -- vendor/modules.txt # can differ between go1.12 and go1.13
+	git checkout -- vendor/modules.txt go.mod go.sum # can differ between go1.12 and go1.13
 	git diff --exit-code # check no changes
 .PHONY: check_generated
 
 fast_check_generated:
 	$(MAKE) --always-make fast_generate
-	git checkout -- vendor/modules.txt # can differ between go1.12 and go1.13
+	git checkout -- vendor/modules.txt go.mod go.sum # can differ between go1.12 and go1.13
 	git diff --exit-code # check no changes
 .PHONY: fast_check_generated
 
-release: export GOFLAGS = -mod=readonly
-release: .goreleaser.yml
-	cd tools && go run github.com/goreleaser/goreleaser --config ../.goreleaser.yml
+release: .goreleaser.yml tools/goreleaser
+	./tools/goreleaser
 .PHONY: release
 
 # Non-PHONY targets (real files)
 
 golangci-lint: FORCE
 	go build -o $@ ./cmd/golangci-lint
+
+tools/godownloader: export GOFLAGS = -mod=readonly
+tools/godownloader: tools/go.mod tools/go.sum
+	cd tools && go build github.com/goreleaser/godownloader
+
+tools/goreleaser: export GOFLAGS = -mod=readonly
+tools/goreleaser: tools/go.mod tools/go.sum
+	cd tools && go build github.com/goreleaser/goreleaser
 
 tools/svg-term: tools/package.json tools/package-lock.json
 	cd tools && npm ci
@@ -83,9 +95,8 @@ tools/Dracula.itermcolors:
 docs/demo.svg: tools/svg-term tools/Dracula.itermcolors
 	./tools/svg-term --cast=183662 --out docs/demo.svg --window --width 110 --height 30 --from 2000 --to 20000 --profile ./tools/Dracula.itermcolors --term iterm2
 
-install.sh: export GOFLAGS = -mod=readonly
-install.sh: .goreleaser.yml
-	cd tools && go run github.com/goreleaser/godownloader ../.goreleaser.yml | sed '/DO NOT EDIT/s/ on [0-9TZ:-]*//' > ../$@
+install.sh: .goreleaser.yml tools/godownloader
+	./tools/godownloader .goreleaser.yml | sed '/DO NOT EDIT/s/ on [0-9TZ:-]*//' > $@
 
 README.md: FORCE golangci-lint
 	go run ./scripts/gen_readme/main.go
@@ -95,6 +106,10 @@ go.mod: FORCE
 	go mod verify
 go.sum: go.mod
 
-.PHONY: vendor
 vendor: go.mod go.sum
 	go mod vendor
+
+unexport GOFLAGS
+vendor_free_build: FORCE
+	go build -o golangci-lint ./cmd/golangci-lint
+.PHONY: vendor_free_build vendor

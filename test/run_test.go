@@ -6,12 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/golangci/golangci-lint/test/testshared"
+	_ "github.com/valyala/quicktemplate"
 
 	"github.com/golangci/golangci-lint/pkg/exitcodes"
-
-	_ "github.com/valyala/quicktemplate"
+	"github.com/golangci/golangci-lint/test/testshared"
 )
 
 func getCommonRunArgs() []string {
@@ -46,7 +44,49 @@ func TestSymlinkLoop(t *testing.T) {
 func TestDeadline(t *testing.T) {
 	testshared.NewLintRunner(t).Run("--deadline=1ms", getProjectRoot()).
 		ExpectExitCode(exitcodes.Timeout).
-		ExpectOutputContains(`Deadline exceeded: try increase it by passing --deadline option`)
+		ExpectOutputContains(`Timeout exceeded: try increasing it by passing --timeout option`)
+}
+
+func TestTimeout(t *testing.T) {
+	testshared.NewLintRunner(t).Run("--timeout=1ms", getProjectRoot()).
+		ExpectExitCode(exitcodes.Timeout).
+		ExpectOutputContains(`Timeout exceeded: try increasing it by passing --timeout option`)
+}
+
+func TestTimeoutInConfig(t *testing.T) {
+	type tc struct {
+		cfg string
+	}
+
+	cases := []tc{
+		{
+			cfg: `
+				run:
+					deadline: 1ms
+			`,
+		},
+		{
+			cfg: `
+				run:
+					timeout: 1ms
+			`,
+		},
+		{
+			// timeout should override deadline
+			cfg: `
+				run:
+					deadline: 100s
+					timeout: 1ms
+			`,
+		},
+	}
+
+	r := testshared.NewLintRunner(t)
+	for _, c := range cases {
+		// Run with disallowed option set only in config
+		r.RunWithYamlConfig(c.cfg, withCommonRunArgs(minimalPkg)...).ExpectExitCode(exitcodes.Timeout).
+			ExpectOutputContains(`Timeout exceeded: try increasing it by passing --timeout option`)
+	}
 }
 
 func TestTestsAreLintedByDefault(t *testing.T) {

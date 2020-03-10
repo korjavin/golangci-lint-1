@@ -1,4 +1,44 @@
 linters-settings:
+  depguard:
+    list-type: blacklist
+    packages:
+      # logging is allowed only by logutils.Log, logrus
+      # is allowed to use only in logutils package
+      - github.com/sirupsen/logrus
+    packages-with-error-message:
+      - github.com/sirupsen/logrus: "logging is allowed only by logutils.Log"
+  dupl:
+    threshold: 100
+  funlen:
+    lines: 100
+    statements: 50
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport # https://github.com/go-critic/go-critic/issues/845
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+      - wrapperFunc
+  gocyclo:
+    min-complexity: 15
+  goimports:
+    local-prefixes: github.com/golangci/golangci-lint
+  golint:
+    min-confidence: 0
+  gomnd:
+    settings:
+      mnd:
+        # don't include the "operation" and "assign"
+        checks: argument,case,condition,return
   govet:
     check-shadowing: true
     settings:
@@ -8,52 +48,25 @@ linters-settings:
           - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
           - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
           - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
-  golint:
-    min-confidence: 0
-  gocyclo:
-    min-complexity: 15
-  maligned:
-    suggest-new: true
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  depguard:
-    list-type: blacklist
-    packages:
-      # logging is allowed only by logutils.Log, logrus
-      # is allowed to use only in logutils package
-      - github.com/sirupsen/logrus
-    packages-with-error-messages:
-      github.com/sirupsen/logrus: "logging is allowed only by logutils.Log"
-  misspell:
-    locale: US
   lll:
     line-length: 140
-  goimports:
-    local-prefixes: github.com/golangci/golangci-lint
-  gocritic:
-    enabled-tags:
-      - performance
-      - style
-      - experimental
-    disabled-checks:
-      - wrapperFunc
-      - dupImport # https://github.com/go-critic/go-critic/issues/845
+  maligned:
+    suggest-new: true
+  misspell:
+    locale: US
 
 linters:
+  # please, do not use `enable-all`: it's deprecated and will be removed soon.
   # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
   disable-all: true
   enable:
     - bodyclose
     - deadcode
     - depguard
-    # - dogsled - TODO: enable it when golangci.com will support it.
+    - dogsled
     - dupl
     - errcheck
-    # - funlen - TODO: enable it when golangci.com will support it.
-    # - godox - TODO: enable it when golangci.com will support it.
+    - funlen
     - gochecknoinits
     - goconst
     - gocritic
@@ -61,6 +74,8 @@ linters:
     - gofmt
     - goimports
     - golint
+    - gomnd
+    - goprintffuncname
     - gosec
     - gosimple
     - govet
@@ -69,6 +84,7 @@ linters:
     - lll
     - misspell
     - nakedret
+    - rowserrcheck
     - scopelint
     - staticcheck
     - structcheck
@@ -78,26 +94,32 @@ linters:
     - unparam
     - unused
     - varcheck
-    # - whitespace - TODO: enable it when golangci.com will support it.
+    - whitespace
 
   # don't enable:
-  # - maligned,prealloc
   # - gochecknoglobals
+  # - gocognit
+  # - godox
+  # - maligned
+  # - prealloc
+
+issues:
+  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
 
 run:
   skip-dirs:
     - test/testdata_etc
-    - internal/(cache|renameio|robustio)
-
-issues:
-  exclude-rules:
-    - text: "weak cryptographic primitive"
-      linters:
-        - gosec
+    - internal/cache
+    - internal/renameio
+    - internal/robustio
 
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
 service:
-  golangci-lint-version: 1.17.x # use the fixed version to not introduce new linters unexpectedly
+  golangci-lint-version: 1.23.x # use the fixed version to not introduce new linters unexpectedly
   prepare:
     - echo "here I can run custom commands, but no preparation needed for this repo"
